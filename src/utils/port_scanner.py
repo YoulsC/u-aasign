@@ -1,18 +1,46 @@
+import subprocess
+import re
 import socket
 
-def scan_open_ports(start_port=1, end_port=1024, timeout=0.2):
+def scan_open_ports():
+    """
+    Devuelve una lista de tuplas (protocolo, puerto, servicio) para
+    todos los puertos TCP en LISTENING y puertos UDP abiertos.
+    """
     open_ports = []
-    for port in range(start_port, end_port + 1):
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                sock.settimeout(timeout)
-                result = sock.connect_ex(('127.0.0.1', port))
-                if result == 0:
-                    try:
-                        service = socket.getservbyport(port)
-                    except OSError:
-                        service = "Unknown"
-                    open_ports.append((port, service))
-        except socket.error:
+    # Llamada a netstat -an para Windows
+    result = subprocess.run(
+        ["netstat", "-an"],
+        capture_output=True,
+        text=True,
+        shell=True  # necesario en Windows
+    )
+    # Regex para líneas TCP LISTENING
+    tcp_re = re.compile(r"^ *TCP +[\d\.\[\]]+:(\d+) +[\d\.\[\]]+:[\d\*]+ +LISTENING", re.IGNORECASE)
+    # Regex para líneas UDP (no tienen “LISTENING”)
+    udp_re = re.compile(r"^ *UDP +[\d\.\[\]]+:(\d+)", re.IGNORECASE)
+
+    for line in result.stdout.splitlines():
+        tcp_m = tcp_re.match(line)
+        if tcp_m:
+            port = int(tcp_m.group(1))
+            try:
+                service = socket.getservbyport(port, "tcp")
+            except OSError:
+                service = "Unknown"
+            open_ports.append(("TCP", port, service))
             continue
-    return open_ports
+
+        udp_m = udp_re.match(line)
+        if udp_m:
+            port = int(udp_m.group(1))
+            try:
+                service = socket.getservbyport(port, "udp")
+            except OSError:
+                service = "Unknown"
+            open_ports.append(("UDP", port, service))
+
+    return sorted(open_ports, key=lambda x: (x[0], x[1]))
+
+
+
