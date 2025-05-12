@@ -27,27 +27,26 @@ u-aasign
 └── README.md                  # Documentacion
 ```
 
-## Installation
+## Instalacion
 
-1. Clone the repository:
+1. hasta que acabemos vemos que hacer :p:
    ```
-   git clone <repository-url>
-   cd system-security-assessment
+   
    ```
-
-2. Install the required dependencies:
+1. hasta que acabemos vemos que hacer :p:
    ```
-   pip install -r requirements.txt
+   
    ```
 
-## Usage
 
-To run the application, execute the following command:
+## Como usarlo
+
+⣾⡟⠀⢰⡿⠁⢠⣿⡏⠁⣰⣾⠟⠉⠉⠉⠛⣿⣶⠈⢻⣷⡀⠈⣿⣧⠈⣿⣧⠀
+⣿⡇⠀⣿⡇⠀⣿⣿⠀⢸⣿⡇⢰⣿ AlienPls ⢸⣿⠀⢸⣿⡇⠀⣿⣿⠀⣿⣿⠀
+⣿⡇⠀⢿⡇⠀⢻⣿⡀⠘⣿⣇⠘⠻⢷⣶⣶⠿⠛⣠⣾⡟⠀⣠⣿⡏⢠⣿⡏
 ```
-python src/main.py
-```
 
-## Recommendations
+## Recomendaciones 
 
 After running the application, review the security score and follow the recommendations provided to enhance your system's security posture.
 
