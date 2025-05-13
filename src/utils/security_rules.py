@@ -2,47 +2,47 @@ def evaluate_security_score(system_info):
     score = 100
     recommendations = []
 
-    # Check OS version
+    # Comprobar versión del SO
     os_version = system_info.get('os_version')
     if os_version:
         if 'Windows' in os_version:
             if '10' not in os_version:
                 score -= 20
-                recommendations.append("Consider upgrading to Windows 10 or later.")
+                recommendations.append("Considere actualizar a Windows 10 o posterior.")
         elif 'Linux' in os_version:
             if 'Ubuntu 18.04' not in os_version and 'Ubuntu 20.04' not in os_version:
                 score -= 15
-                recommendations.append("Consider using a supported version of Ubuntu.")
+                recommendations.append("Considere usar una versión de Ubuntu con soporte.")
 
-    # Check active processes
+    # Comprobar procesos activos
     active_processes = system_info.get('active_processes', [])
     if len(active_processes) > 50:
         score -= 10
-        recommendations.append("Reduce the number of active processes to improve security.")
+        recommendations.append("Reduzca el número de procesos activos para mejorar la seguridad.")
 
-    # Check open ports
+    # Comprobar puertos abiertos
     open_ports = system_info.get('open_ports', [])
     if len(open_ports) > 10:
         score -= 15
-        recommendations.append("Close unnecessary open ports.")
+        recommendations.append("Cierre los puertos abiertos innecesarios.")
 
-    #Penalizar los puertos inseguros especificos
+    # Penalizar puertos inseguros específicos
     insecure_ports = [21, 23, 445, 3389]
     found_insecure = [port for port, _ in open_ports if port in insecure_ports]
     if found_insecure:
         score -= 20
-        recommendations.append(f"Close insecure ports: {', '.join(map(str, found_insecure))}.")
+        recommendations.append(f"Cierre los puertos inseguros: {', '.join(map(str, found_insecure))}.")
 
-    # Check CPU usage
+    # Comprobar uso de CPU
     cpu_usage = system_info.get('cpu_usage', 0)
     if cpu_usage > 80:
         score -= 10
-        recommendations.append("High CPU usage detected. Investigate running processes.")
+        recommendations.append("Uso de CPU elevado detectado. Investigue los procesos en ejecución.")
 
-    # Check RAM usage
+    # Comprobar uso de RAM
     ram_usage = system_info.get('ram_usage', 0)
     if ram_usage > 80:
         score -= 10
-        recommendations.append("High RAM usage detected. Consider closing unused applications.")
+        recommendations.append("Uso de RAM elevado detectado. Considere cerrar aplicaciones no utilizadas.")
 
     return score, recommendations

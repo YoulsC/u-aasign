@@ -100,13 +100,18 @@ def main():
             with console.status("[green]Evaluando seguridad del sistema..."):
                 os_version = get_os_version()
                 active_processes = get_active_processes()
-                open_ports = scan_open_ports()
+                raw_ports = scan_open_ports()
                 resource_usage = get_resource_usage()
+
+                # Preparamos la lista de puertos para la función:
+                open_ports_for_score = [(port, service) for _, port, service in raw_ports]
+
                 score, recommendations = evaluate_security_score({
                     'os_version': os_version,
                     'active_processes': active_processes,
-                    'open_ports': open_ports,
-                    'resource_usage': resource_usage
+                    'open_ports': open_ports_for_score,
+                    'cpu_usage': resource_usage['cpu_usage'],
+                    'ram_usage': resource_usage['ram_usage']
                 })
                 time.sleep(0.5)
 
