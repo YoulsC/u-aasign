@@ -61,8 +61,28 @@ def main():
             with console.status("[green]Obteniendo procesos activos..."):
                 processes = get_active_processes()
                 time.sleep(0.5)
-            # Aquí podrías formatear y mostrar `processes`
+
+            if processes:
+                table = Table(title="Procesos Activos")
+                table.add_column("PID", justify="right")
+                table.add_column("Nombre", justify="left")
+                table.add_column("Estado", justify="center")
+                table.add_column("% CPU", justify="right")
+                table.add_column("% RAM", justify="right")
+                for proc in processes:
+                    table.add_row(
+                        str(proc.pid),
+                        proc.name,
+                        proc.status,
+                        f"{proc.cpu_percent:.1f}",
+                        f"{proc.memory_percent:.1f}"
+                    )
+                console.print(table)
+            else:
+                console.print("[bold yellow]No se pudieron obtener procesos activos.[/bold yellow]")
+
             input("\nPresiona Enter para volver al menú...")
+
 
         elif choice == "3":
             clear_screen()
