@@ -1,4 +1,4 @@
-def get_resource_usage():
+def usorecursos():
     import psutil
 
     cpu_usage = psutil.cpu_percent(interval=1)

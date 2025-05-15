@@ -12,10 +12,12 @@ import time
 import subprocess
 
 from utils.os_info import get_os_version
-from utils.process_info import get_active_processes
-from utils.port_scanner import scan_open_ports
-from utils.resource_usage import get_resource_usage
-from utils.security_rules import evaluate_security_score
+from utils.process_info import procesos
+from utils.puertoscan import Scan_puertos
+from utils.usorecursos import usorecursos
+from utils.evaluacion import evaluacion
+from utils.appinst import apps
+from utils.actividad import procssact
 
 console = Console()
 
@@ -36,6 +38,7 @@ def show_menu():
     console.print("[yellow]3.[/yellow] Escanear puertos abiertos")
     console.print("[yellow]4.[/yellow] Ver uso de recursos")
     console.print("[yellow]5.[/yellow] Evaluar seguridad del sistema")
+    console.print("[yellow]6.[/yellow] Ver aplicaciones instaladas")
     console.print("[yellow]0.[/yellow] Salir")
 
 def main():
@@ -43,7 +46,7 @@ def main():
         show_menu()
         choice = Prompt.ask(
             "\n[bold white]Selecciona una opción[/bold white]",
-            choices=["1", "2", "3", "4", "5", "0"]
+            choices=["1", "2", "3", "4", "5", "6", "0"]
         )
 
         if choice == "1":
@@ -59,7 +62,7 @@ def main():
             clear_screen()
             show_banner()
             with console.status("[green]Obteniendo procesos activos..."):
-                processes = get_active_processes()
+                processes = procesos()
                 time.sleep(0.5)
 
             if processes:
@@ -88,7 +91,7 @@ def main():
             clear_screen()
             show_banner()
             with console.status("[green]Escaneando puertos abiertos..."):
-                ports = scan_open_ports()
+                ports = Scan_puertos()
                 time.sleep(0.5)
 
             if ports:
@@ -108,7 +111,7 @@ def main():
             clear_screen()
             show_banner()
             with console.status("[green]Obteniendo uso de recursos..."):
-                usage = get_resource_usage()
+                usage = usorecursos()
                 time.sleep(0.5)
             console.print(f"[bold green]CPU:[/bold green] {usage['cpu_usage']}%")
             console.print(f"[bold green]RAM:[/bold green] {usage['ram_usage']}%")
@@ -119,14 +122,14 @@ def main():
             show_banner()
             with console.status("[green]Evaluando seguridad del sistema..."):
                 os_version = get_os_version()
-                active_processes = get_active_processes()
-                raw_ports = scan_open_ports()
-                resource_usage = get_resource_usage()
+                active_processes = procesos()
+                raw_ports = Scan_puertos()
+                resource_usage = usorecursos()
 
                 # Preparamos la lista de puertos para la función:
                 open_ports_for_score = [(port, service) for _, port, service in raw_ports]
 
-                score, recommendations = evaluate_security_score({
+                score, recommendations = evaluacion({
                     'os_version': os_version,
                     'active_processes': active_processes,
                     'open_ports': open_ports_for_score,
@@ -135,15 +138,31 @@ def main():
                 })
                 time.sleep(0.5)
 
-            console.print(f"\n[bold magenta]🎯 Puntuación de seguridad: {score}/100[/bold magenta]")
+            console.print(f"\n[bold magenta] Puntuación de seguridad: {score}/100[/bold magenta]")
             if recommendations:
-                console.print("\n📌 Recomendaciones:")
+                console.print("\n Recomendaciones:")
                 for r in recommendations:
                     console.print(f" - {r}")
             else:
                 console.print("[green]¡Todo se ve bien![/green]")
 
             input("\nPresiona Enter para volver al menú...")
+ 
+        elif choice == "6":
+            clear_screen()
+            show_banner()
+            aplicaciones = apps()
+            table = Table(title="Aplicaciones Instaladas")
+            table.add_column("Nombre", style="cyan")
+            table.add_column("Version", style="green")
+            for name, version in aplicaciones[:30]:
+                table.add_row(name, version)
+            if len(aplicaciones) > 30:
+                console.print(f"\n[bold yellow]Mostrando 30 de {len(aplicaciones)} aplicaciones...[/bold yellow]")
+            
+
+            input("\nPresiona Enter para volver al menú...")
+            
 
         elif choice == "0":
             console.print("[red]Saliendo del programa...[/red]")
