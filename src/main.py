@@ -1,5 +1,6 @@
 # src/main.py
 
+from math import prod
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -9,7 +10,7 @@ from pyfiglet import figlet_format
 
 import os
 import time
-import subprocess
+import psutil
 
 from utils.os_info import get_os_version
 from utils.process_info import get_active_processes
@@ -62,26 +63,72 @@ def main():
                 processes = get_active_processes()
                 time.sleep(0.5)
 
+            processes = [p for p in processes if p.pid != 0]
+
             if processes:
-                table = Table(title="Procesos Activos")
+                console.print(
+                    "[yellow]⚠️  Revisar primero los procesos que más CPU consumen ayuda a detectar rápida y eficientemente posibles amenazas.[/yellow]\n"
+                )
+
+                # Normalizamos uso de CPU a 0–100%
+                n_cpus = psutil.cpu_count()
+                top_procs = sorted(
+                    processes,
+                    key=lambda p: p.cpu_percent / n_cpus,
+                    reverse=True
+                )[:10]
+
+                # Mostrar la tabla de Top 10
+                table = Table(title="Top 10 Procesos por CPU")
                 table.add_column("PID", justify="right")
                 table.add_column("Nombre", justify="left")
-                table.add_column("Estado", justify="center")
                 table.add_column("% CPU", justify="right")
                 table.add_column("% RAM", justify="right")
-                for proc in processes:
+
+                for proc in top_procs:
                     table.add_row(
                         str(proc.pid),
                         proc.name,
-                        proc.status,
-                        f"{proc.cpu_percent:.1f}",
+                        f"{(proc.cpu_percent / n_cpus):.1f}",
                         f"{proc.memory_percent:.1f}"
                     )
                 console.print(table)
+
+                # Preguntar y analizar en VirusTotal
+                if Prompt.ask("\n¿Quieres analizar alguno de estos procesos en VirusTotal? (s/n)", choices=["s", "n"]) == "s":
+                    pid_choices = [str(p.pid) for p in top_procs]
+                    pid = Prompt.ask("Selecciona el PID a analizar", choices=pid_choices)
+                    try:
+                        p = psutil.Process(int(pid))
+                        exe_path = p.exe()
+                        from utils.virustotal_api import analizar_archivo_virustotal
+                        console.print(f"[cyan]Analizando archivo: {exe_path}[/cyan]")
+                        result = analizar_archivo_virustotal(exe_path)
+
+                        if "error" in result:
+                            console.print(f"[red]{result['error']}[/red]")
+                        else:
+                            stats = result['data']['attributes']['stats']
+                            console.print("\n[bold]VirusTotal:[/bold]")
+                            console.print(f" - Malicioso: [red]{stats['malicious']}[/red]")
+                            console.print(f" - Sospechoso: [yellow]{stats['suspicious']}[/yellow]")
+                            console.print(f" - No detectado: [green]{stats['undetected']}[/green]")
+                            sha256 = result['meta'].get('file_info', {}).get('sha256')
+                            if sha256:
+                                console.print(f"\n[cyan]Más info:[/cyan] https://www.virustotal.com/gui/file/{sha256}")
+                    except psutil.AccessDenied:
+                        console.print(f"[red]Acceso denegado al proceso {pid}[/red]")
+                    except psutil.NoSuchProcess:
+                        console.print(f"[red]El proceso {pid} ya no existe[/red]")
+                    except Exception as e:
+                        console.print(f"[red]Error analizando el proceso: {e}[/red]")
+
             else:
-                console.print("[bold yellow]No se pudieron obtener procesos activos.[/bold yellow]")
+                console.print("[bold yellow]No se pudieron obtener procesos activos válidos.[/bold yellow]")
 
             input("\nPresiona Enter para volver al menú...")
+
+
 
 
         elif choice == "3":
