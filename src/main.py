@@ -1,10 +1,9 @@
 # src/main.py
 
-from math import prod
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.prompt import Prompt
+from rich.prompt import Prompt, IntPrompt
 from rich.status import Status
 from pyfiglet import figlet_format
 
@@ -18,16 +17,18 @@ from utils.puertoscan import Scan_puertos
 from utils.usorecursos import usorecursos
 from utils.evaluacion import evaluacion
 from utils.appinst import apps
-from utils.actividad import procssact
 
 console = Console()
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
+
 def show_banner():
+    # Banner original
     banner = figlet_format("U-AASIGN", font="slant")
     console.print(f"[bold cyan]{banner}[/bold cyan]")
+
 
 def show_menu():
     clear_screen()
@@ -41,6 +42,7 @@ def show_menu():
     console.print("[yellow]5.[/yellow] Evaluar seguridad del sistema")
     console.print("[yellow]6.[/yellow] Ver aplicaciones instaladas")
     console.print("[yellow]0.[/yellow] Salir")
+
 
 def main():
     while True:
@@ -66,73 +68,69 @@ def main():
                 processes = procesos()
                 time.sleep(0.5)
 
-            processes = [p for p in processes if p.pid != 0]
-
             if processes:
-                console.print(
-                    "[yellow]⚠️  Revisar primero los procesos que más CPU consumen ayuda a detectar rápida y eficientemente posibles amenazas.[/yellow]\n"
-                )
+                # Pedir filtro de sistema
+                if Prompt.ask("[bold yellow]¿Omitir procesos de sistema? (s/n)[/bold yellow]", choices=["s","n"], default="s") == "s":
+                    system_users = ("root", "SYSTEM", "LocalService", "NetworkService")
+                    processes = [
+                        p for p in processes
+                        if p.user not in system_users
+                        and not (p.name.startswith("[") and p.name.endswith("]"))
+                        and p.pid > 100
+                    ]
 
-                # Normalizamos uso de CPU a 0–100%
-                n_cpus = psutil.cpu_count()
-                top_procs = sorted(
-                    processes,
-                    key=lambda p: p.cpu_percent / n_cpus,
-                    reverse=True
-                )[:10]
+                # Ahora ordenas e imprimes esos procesos filtrados
+                processes.sort(key=lambda p: p.cpu_percent, reverse=True)
+                console.print("[yellow]🔍 Listado de todos los procesos activos con métricas detalladas:[/yellow]\n")
+                # Ordenar descendente por uso de CPU
+                processes.sort(key=lambda p: p.cpu_percent, reverse=True)
 
-                # Mostrar la tabla de Top 10
-                table = Table(title="Top 10 Procesos por CPU")
-                table.add_column("PID", justify="right")
-                table.add_column("Nombre", justify="left")
-                table.add_column("% CPU", justify="right")
-                table.add_column("% RAM", justify="right")
+                table = Table(title="[bold cyan]Procesos Activos[/bold cyan]")
+                # Columnas con colores
+                table.add_column("#", style="bold yellow", justify="right")
+                table.add_column("PID", style="bold magenta", justify="right")
+                table.add_column("Usuario", style="bold green")
+                table.add_column("Nombre", style="bold white")
+                table.add_column("% CPU", style="bold red", justify="right")
+                table.add_column("% RAM", style="bold blue", justify="right")
+                table.add_column("Hilos", style="bold cyan", justify="right")
+                table.add_column("I/O KiB L/E", style="bold green", justify="right")
+                table.add_column("Conexiones", style="bold magenta", justify="right")
+                table.add_column("Inicio", style="bold white")
 
-                for proc in top_procs:
+                for idx, p in enumerate(processes, 1):
+                    start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(p.create_time))
+                    io_vals = f"{p.io_read_bytes//1024}/{p.io_write_bytes//1024}"
                     table.add_row(
-                        str(proc.pid),
-                        proc.name,
-                        f"{(proc.cpu_percent / n_cpus):.1f}",
-                        f"{proc.memory_percent:.1f}"
+                        str(idx),
+                        str(p.pid),
+                        p.user,
+                        p.name,
+                        f"{p.cpu_percent:.1f}",
+                        f"{p.memory_percent:.1f}",
+                        str(p.num_threads),
+                        io_vals,
+                        str(p.net_connections),
+                        start_time
                     )
                 console.print(table)
 
-                # Preguntar y analizar en VirusTotal
-                if Prompt.ask("\n¿Quieres analizar alguno de estos procesos en VirusTotal? (s/n)", choices=["s", "n"]) == "s":
-                    pid_choices = [str(p.pid) for p in top_procs]
-                    pid = Prompt.ask("Selecciona el PID a analizar", choices=pid_choices)
+                if Prompt.ask("[bold yellow]¿Terminar algún proceso sospechoso? (s/n)[/bold yellow]", choices=["s","n"], default="n") == "s":
+                    sel = IntPrompt.ask(
+                        "[bold magenta]Selecciona # de proceso para terminar[/bold magenta]"
+                    )
+                    target = processes[int(sel)-1]
                     try:
-                        p = psutil.Process(int(pid))
-                        exe_path = p.exe()
-                        from utils.virustotal_api import analizar_archivo_virustotal
-                        console.print(f"[cyan]Analizando archivo: {exe_path}[/cyan]")
-                        result = analizar_archivo_virustotal(exe_path)
-
-                        if "error" in result:
-                            console.print(f"[red]{result['error']}[/red]")
-                        else:
-                            stats = result['data']['attributes']['stats']
-                            console.print("\n[bold]VirusTotal:[/bold]")
-                            console.print(f" - Malicioso: [red]{stats['malicious']}[/red]")
-                            console.print(f" - Sospechoso: [yellow]{stats['suspicious']}[/yellow]")
-                            console.print(f" - No detectado: [green]{stats['undetected']}[/green]")
-                            sha256 = result['meta'].get('file_info', {}).get('sha256')
-                            if sha256:
-                                console.print(f"\n[cyan]Más info:[/cyan] https://www.virustotal.com/gui/file/{sha256}")
-                    except psutil.AccessDenied:
-                        console.print(f"[red]Acceso denegado al proceso {pid}[/red]")
+                        psutil.Process(target.pid).terminate()
+                        console.print(f"[bold green]✔ Proceso PID {target.pid} ('{target.name}') terminado correctamente.[/bold green]")
                     except psutil.NoSuchProcess:
-                        console.print(f"[red]El proceso {pid} ya no existe[/red]")
-                    except Exception as e:
-                        console.print(f"[red]Error analizando el proceso: {e}[/red]")
-
+                        console.print(f"[bold red]✖ El proceso {target.pid} ya no existe.[/bold red]")
+                    except psutil.AccessDenied:
+                        console.print(f"[bold red]✖ Permiso denegado al terminar proceso {target.pid}.[/bold red]")
             else:
-                console.print("[bold yellow]No se pudieron obtener procesos activos válidos.[/bold yellow]")
+                console.print("[bold red]No se encontraron procesos activos.[/bold red]")
 
             input("\nPresiona Enter para volver al menú...")
-
-
-
 
         elif choice == "3":
             clear_screen()
@@ -140,18 +138,16 @@ def main():
             with console.status("[green]Escaneando puertos abiertos..."):
                 ports = Scan_puertos()
                 time.sleep(0.5)
-
             if ports:
-                table = Table(title="Puertos abiertos")
-                table.add_column("Protocolo", justify="center")
-                table.add_column("Puerto", justify="right")
-                table.add_column("Servicio")
-                for proto, port, service in ports:
-                    table.add_row(proto, str(port), service)
+                table = Table(title="Puertos Abiertos")
+                table.add_column("Protocolo", style="bold cyan", justify="center")
+                table.add_column("Puerto", style="bold yellow", justify="right")
+                table.add_column("Servicio", style="bold white")
+                for proto, port, serv in ports:
+                    table.add_row(proto, str(port), serv)
                 console.print(table)
             else:
                 console.print("[bold red]No se encontraron puertos abiertos.[/bold red]")
-
             input("\nPresiona Enter para volver al menú...")
 
         elif choice == "4":
@@ -167,53 +163,33 @@ def main():
         elif choice == "5":
             clear_screen()
             show_banner()
-            with console.status("[green]Evaluando seguridad del sistema..."):
-                os_version = get_os_version()
-                active_processes = procesos()
-                raw_ports = Scan_puertos()
-                resource_usage = usorecursos()
-
-                # Preparamos la lista de puertos para la función:
-                open_ports_for_score = [(port, service) for _, port, service in raw_ports]
-
-                score, recommendations = evaluacion({
-                    'os_version': os_version,
-                    'active_processes': active_processes,
-                    'open_ports': open_ports_for_score,
-                    'cpu_usage': resource_usage['cpu_usage'],
-                    'ram_usage': resource_usage['ram_usage']
-                })
+            with console.status("[green]Evaluando seguridad..."):
+                report = evaluacion()
                 time.sleep(0.5)
-
-            console.print(f"\n[bold magenta] Puntuación de seguridad: {score}/100[/bold magenta]")
-            if recommendations:
-                console.print("\n Recomendaciones:")
-                for r in recommendations:
-                    console.print(f" - {r}")
-            else:
-                console.print("[green]¡Todo se ve bien![/green]")
-
+            console.print(Panel(report, title="Evaluación del sistema", subtitle="🏁"))
             input("\nPresiona Enter para volver al menú...")
- 
+
         elif choice == "6":
             clear_screen()
             show_banner()
-            aplicaciones = apps()
+            with console.status("[green]Obteniendo aplicaciones instaladas..."):
+                aplicaciones = apps()
+                time.sleep(0.5)
             table = Table(title="Aplicaciones Instaladas")
-            table.add_column("Nombre", style="cyan")
-            table.add_column("Version", style="green")
-            for name, version in aplicaciones[:30]:
-                table.add_row(name, version)
+            table.add_column("#", style="bold yellow", justify="right")
+            table.add_column("Nombre", style="bold white")
+            table.add_column("Versión", style="bold green")
+            for idx, (name, ver) in enumerate(aplicaciones,1):
+                table.add_row(str(idx), name, ver)
+            console.print(table)
             if len(aplicaciones) > 30:
-                console.print(f"\n[bold yellow]Mostrando 30 de {len(aplicaciones)} aplicaciones...[/bold yellow]")
-            
-
+                console.print(f"[bold yellow]Mostrando 30 de {len(aplicaciones)} aplicaciones...[/bold yellow]")
             input("\nPresiona Enter para volver al menú...")
-            
 
         elif choice == "0":
-            console.print("[red]Saliendo del programa...[/red]")
+            console.print("[bold red]Saliendo... Hasta luego![/bold red]")
             break
+
 
 if __name__ == "__main__":
     main()

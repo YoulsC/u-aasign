@@ -1,4 +1,0 @@
-psutil
-pyfiglet
-rich
-pip install requests
