@@ -23,7 +23,6 @@ u-aasign
 │   │   ├── appinst.py          # Funciones para obtener las apps del sistema y ver cuales podrian actualizarse
 │   │   ├── puertoscan.py       # Funciones para obtener los puertos abiertos 
 │   │   ├── usorecursos.py      # Funciones para monitorear CPU y uso de RAM 
-│   │   ├── virustotal_api.py   # Api para detectar codigo malicioso
 │   │   └── evaluaciones.py     # Funciones para evaluar las funciones anteriores con una calificacion
 ├── requirements.txt            # Dependencias usadas
 └── README.md                   # Documentacion
