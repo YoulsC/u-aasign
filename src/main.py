@@ -164,26 +164,28 @@ def main():
             clear_screen()
             show_banner()
             with console.status("[green]Evaluando seguridad..."):
-                report = evaluacion()
+                # Obtener información del sistema
+                os_version = get_os_version()
+                procesos_activos = procesos()
+                puertos = Scan_puertos()
+                recursos = usorecursos()
+                # Formatear puertos para la evaluación: (puerto, servicio)
+                puertos_abiertos = [(port, serv) for _, port, serv in puertos]
+                info_sistema = {
+                    'version_so': os_version,
+                    'procesos_activos': procesos_activos,
+                    'puertos_abiertos': puertos_abiertos,
+                    'uso_cpu': recursos['cpu_usage'],
+                    'uso_ram': recursos['ram_usage']
+                }
+                puntaje, recomendaciones = evaluacion(info_sistema)
                 time.sleep(0.5)
-            console.print(Panel(report, title="Evaluación del sistema", subtitle="🏁"))
-            input("\nPresiona Enter para volver al menú...")
-
-        elif choice == "6":
-            clear_screen()
-            show_banner()
-            with console.status("[green]Obteniendo aplicaciones instaladas..."):
-                aplicaciones = apps()
-                time.sleep(0.5)
-            table = Table(title="Aplicaciones Instaladas")
-            table.add_column("#", style="bold yellow", justify="right")
-            table.add_column("Nombre", style="bold white")
-            table.add_column("Versión", style="bold green")
-            for idx, (name, ver) in enumerate(aplicaciones,1):
-                table.add_row(str(idx), name, ver)
-            console.print(table)
-            if len(aplicaciones) > 30:
-                console.print(f"[bold yellow]Mostrando 30 de {len(aplicaciones)} aplicaciones...[/bold yellow]")
+            # Preparar y mostrar reporte
+            if recomendaciones:
+                reporte = f"Puntaje: {puntaje}\n\nRecomendaciones:\n" + "\n".join(f"- {r}" for r in recomendaciones)
+            else:
+                reporte = f"Puntaje: {puntaje}\n\nNo hay recomendaciones adicionales."
+            console.print(Panel(reporte, title="Evaluación del sistema", subtitle="🏁"))
             input("\nPresiona Enter para volver al menú...")
 
         elif choice == "0":
